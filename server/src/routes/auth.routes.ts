@@ -1,6 +1,6 @@
 import express from "express";
 import { collections } from "../database";
-import jwt from 'jsonwebtoken';
+import jwt, { Secret } from 'jsonwebtoken'; // Import Secret type from jsonwebtoken
 import bcrypt from "bcrypt";
 
 export const authRouter = express.Router();
@@ -25,12 +25,15 @@ authRouter.post("/register", async (req, res) => {
       };
   
       const result = await collections.users.insertOne(newUser);
+
+      // Ensure process.env.JWT_SECRET is defined and assert its type
+      const secret: Secret = process.env.JWT_SECRET || 'default_secret';
   
       // Issue JWT upon successful registration
-      const token = jwt.sign({ userId: result.insertedId, role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      const token = jwt.sign({ userId: result.insertedId, role }, secret, { expiresIn: '1h' });
   
       res.status(201).json({ message: `User created with ID: ${result.insertedId}`, token });
-    } catch (error) {
+    } catch (error: any) { // Handle 'unknown' type error
       res.status(500).send(error.message);
     }
   }
@@ -44,12 +47,15 @@ authRouter.post("/login", async (req, res) => {
     const user = await collections.users.findOne({ email });
 
     if (user && await bcrypt.compare(password, user.passwordHash)) {
-      const token = jwt.sign({ userId: user._id, role: user.role, clientID: user.clientid }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      // Ensure process.env.JWT_SECRET is defined and assert its type
+      const secret: Secret = process.env.JWT_SECRET || 'default_secret';
+      
+      const token = jwt.sign({ userId: user._id, role: user.role, clientID: user.clientid }, secret, { expiresIn: '1h' });
       res.status(200).send({ token, role: user.role, clientid: user.clientid, userID: user._id });
     } else {
       res.status(400).send("Invalid email or password");
     }
-  } catch (error) {
+  } catch (error: any) { // Handle 'unknown' type error
     res.status(500).send(error.message);
   }
 }
